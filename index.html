@@ -1,136 +1,34 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Onverslaanbare Schaakbot</title>
-
-  <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-
+  <title>Schaakbot</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: white;
-      text-align: center;
-      padding: 30px;
-    }
-
-    #board {
-      width: 420px;
-      margin: 20px auto;
-    }
-
-    button {
-      padding: 12px 20px;
-      font-size: 16px;
-      cursor: pointer;
-    }
+    body { background:#111; color:white; text-align:center; font-family:Arial; }
+    #board { font-size:40px; line-height:1.2; margin-top:30px; white-space:pre; }
+    button { padding:12px 20px; font-size:18px; }
   </style>
 </head>
 <body>
-
   <h1>Onverslaanbare Schaakbot</h1>
-  <p>Jij speelt wit. De bot speelt zwart met Stockfish.</p>
+  <p>Testversie zonder plaatjes</p>
 
+  <button onclick="nieuwSpel()">Nieuw spel</button>
   <div id="board"></div>
 
-  <button onclick="resetGame()">Nieuw spel</button>
-  <p id="status"></p>
-
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://unpkg.com/chess.js@0.10.3/chess.min.js"></script>
-  <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-
   <script>
-    const game = new Chess();
-
-    const stockfish = new Worker(
-      "https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish.js"
-    );
-
-    stockfish.postMessage("uci");
-    stockfish.postMessage("setoption name Skill Level value 20");
-    stockfish.postMessage("setoption name UCI_LimitStrength value false");
-
-    const board = Chessboard("board", {
-      draggable: true,
-      position: "start",
-      pieceTheme: "https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png",
-
-      onDragStart: function (source, piece) {
-        if (game.game_over()) return false;
-        if (piece.search(/^b/) !== -1) return false;
-      },
-
-      onDrop: function (source, target) {
-        const move = game.move({
-          from: source,
-          to: target,
-          promotion: "q"
-        });
-
-        if (move === null) return "snapback";
-
-        updateStatus();
-
-        setTimeout(makeBotMove, 300);
-      },
-
-      onSnapEnd: function () {
-        board.position(game.fen());
-      }
-    });
-
-    function makeBotMove() {
-      if (game.game_over()) return;
-
-      stockfish.postMessage("position fen " + game.fen());
-      stockfish.postMessage("go depth 18");
-
-      stockfish.onmessage = function (event) {
-        const message = event.data;
-
-        if (message.startsWith("bestmove")) {
-          const bestMove = message.split(" ")[1];
-
-          game.move({
-            from: bestMove.substring(0, 2),
-            to: bestMove.substring(2, 4),
-            promotion: bestMove.substring(4, 5) || "q"
-          });
-
-          board.position(game.fen());
-          updateStatus();
-        }
-      };
+    function nieuwSpel() {
+      document.getElementById("board").textContent =
+`♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜
+♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟
+□ □ □ □ □ □ □ □
+□ □ □ □ □ □ □ □
+□ □ □ □ □ □ □ □
+□ □ □ □ □ □ □ □
+♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙
+♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖`;
     }
 
-    function updateStatus() {
-      let status = "";
-
-      if (game.in_checkmate()) {
-        status = game.turn() === "w"
-          ? "Schaakmat! De bot heeft gewonnen."
-          : "Jij hebt gewonnen!";
-      } else if (game.in_draw()) {
-        status = "Remise.";
-      } else {
-        status = game.turn() === "w"
-          ? "Jij bent aan zet."
-          : "Bot denkt...";
-      }
-
-      document.getElementById("status").textContent = status;
-    }
-
-    function resetGame() {
-      game.reset();
-      board.start();
-      updateStatus();
-    }
-
-    updateStatus();
+    nieuwSpel();
   </script>
-
 </body>
 </html>
