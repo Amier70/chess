@@ -1,51 +1,40 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Schaakspel Pro</title>
-
-  <link rel="stylesheet" href="style.css">
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <div class="container">
-
-    <div class="board-container">
+  <main class="app">
+    <section class="board-wrap">
       <div id="board"></div>
-    </div>
+    </section>
 
-    <div class="sidebar">
-
+    <aside class="sidebar">
       <h1>Schaakspel Pro</h1>
+      <p>Speel tegen Stockfish in je browser.</p>
 
-      <label>Botniveau</label>
+      <div id="status">Wit is aan zet.</div>
 
+      <label for="difficulty">Botniveau</label>
       <select id="difficulty">
-        <option value="5">Beginner</option>
-        <option value="10">Gemiddeld</option>
-        <option value="15">Sterk</option>
-        <option value="20">Master</option>
-        <option value="25">Stockfish Max</option>
+        <option value="3">Beginner</option>
+        <option value="6">Normaal</option>
+        <option value="10">Sterk</option>
+        <option value="15">Expert</option>
+        <option value="20">Stockfish Max</option>
       </select>
 
       <button id="newGame">Nieuw spel</button>
 
       <h2>Zetten</h2>
+      <div id="moves">Nog geen zetten.</div>
+    </aside>
+  </main>
 
-      <div id="moves"></div>
-
-      <h2>Evaluatie</h2>
-
-      <div id="evaluation">0.0</div>
-
-    </div>
-
-  </div>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="app.js"></script>
-
 </body>
 </html>
