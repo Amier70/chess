@@ -1,4 +1,6 @@
-const engine = new Worker("stockfish.js");
+const engine = new Worker(
+  "https://cdn.jsdelivr.net/npm/stockfish@16.1.0/src/stockfish-nnue-16.1-single.js"
+);
 
 const game = new Chess();
 
@@ -25,7 +27,7 @@ engine.onmessage = function(event){
 
     if(line.includes("score cp")){
 
-        let cp = line.match(/score cp (-?\\d+)/);
+        let cp = line.match(/score cp (-?\d+)/);
 
         if(cp){
             document.getElementById("evaluation").innerText =
