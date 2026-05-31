@@ -167,6 +167,34 @@
       .app { grid-template-columns: 1fr; }
       .sidebar { order: -1; }
     }
+  
+    .controls {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: #111827;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+    }
+
+    .thinking {
+      opacity: 0.72;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -179,6 +207,23 @@
       <h1>Schaakspel</h1>
       <p class="subtitle">Speel lokaal met twee spelers op hetzelfde scherm. Klik op een stuk en daarna op een geldig vak.</p>
       <div id="status" class="status">Wit is aan zet.</div>
+
+      <div class="controls">
+        <label for="modeSelect">Spelmodus</label>
+        <select id="modeSelect">
+          <option value="human">2 spelers lokaal</option>
+          <option value="bot" selected>Speel tegen bot</option>
+        </select>
+
+        <label for="difficultySelect">Botsterkte</label>
+        <select id="difficultySelect">
+          <option value="1">Niveau 1 — willekeurig</option>
+          <option value="2">Niveau 2 — pakt gratis stukken</option>
+          <option value="3" selected>Niveau 3 — slim materiaalspel</option>
+          <option value="4">Niveau 4 — kijkt 1 zet vooruit</option>
+        </select>
+      </div>
+
       <button id="resetBtn">Nieuw spel</button>
 
       <div class="moves">
@@ -195,6 +240,8 @@
     const statusEl = document.getElementById("status");
     const moveListEl = document.getElementById("moveList");
     const resetBtn = document.getElementById("resetBtn");
+    const modeSelect = document.getElementById("modeSelect");
+    const difficultySelect = document.getElementById("difficultySelect");
 
     const pieces = {
       wK: "♔", wQ: "♕", wR: "♖", wB: "♗", wN: "♘", wP: "♙",
@@ -218,6 +265,27 @@
     let legalMoves;
     let history;
     let gameOver;
+    let botThinking = false;
+
+    const pieceValue = {
+      P: 100,
+      N: 320,
+      B: 330,
+      R: 500,
+      Q: 900,
+      K: 20000
+    };
+
+    const centerBonus = [
+      [0, 0, 1, 1, 1, 1, 0, 0],
+      [0, 1, 2, 2, 2, 2, 1, 0],
+      [1, 2, 3, 4, 4, 3, 2, 1],
+      [1, 2, 4, 6, 6, 4, 2, 1],
+      [1, 2, 4, 6, 6, 4, 2, 1],
+      [1, 2, 3, 4, 4, 3, 2, 1],
+      [0, 1, 2, 2, 2, 2, 1, 0],
+      [0, 0, 1, 1, 1, 1, 0, 0]
+    ];
 
     function newGame() {
       board = initialBoard.map(row => [...row]);
@@ -291,7 +359,8 @@
     }
 
     function handleSquareClick(r, c) {
-      if (gameOver) return;
+      if (gameOver || botThinking) return;
+      if (modeSelect.value === "bot" && turn === "b") return;
       const piece = board[r][c];
 
       if (selected) {
@@ -303,6 +372,7 @@
           render();
           updateStatus();
           updateMoves();
+          maybeBotMove();
           return;
         }
       }
@@ -326,17 +396,23 @@
       if (piece === "wP" && tr === 0) board[tr][tc] = "wQ";
       if (piece === "bP" && tr === 7) board[tr][tc] = "bQ";
 
-      history.push(`${turn === "w" ? "Wit" : "Zwart"}: ${pieces[piece]} ${algebraic(fr, fc)} → ${algebraic(tr, tc)}${captured ? " x " + pieces[captured] : ""}`);
+      history.push(`${turn === "w" ? "Wit" : "Zwart"}: ${pieces[piece]} ${algebraic(fr, fc)} → ${algebraic(tr, tc)}${captured ? " x " + pieces[captured] : ""}${(piece === "wP" && tr === 0) || (piece === "bP" && tr === 7) ? " = ♛" : ""}`);
       turn = enemy(turn);
     }
 
     function getLegalMoves(r, c) {
-      const pseudo = getPseudoMoves(board, r, c);
-      const color = colorOf(board[r][c]);
+      return getLegalMovesForBoard(board, r, c);
+    }
+
+    function getLegalMovesForBoard(b, r, c) {
+      const pseudo = getPseudoMoves(b, r, c);
+      const color = colorOf(b[r][c]);
       return pseudo.filter(move => {
-        const copy = cloneBoard(board);
+        const copy = cloneBoard(b);
         copy[move.r][move.c] = copy[r][c];
         copy[r][c] = null;
+        if (copy[move.r][move.c] === "wP" && move.r === 0) copy[move.r][move.c] = "wQ";
+        if (copy[move.r][move.c] === "bP" && move.r === 7) copy[move.r][move.c] = "bQ";
         return !isKingInCheck(copy, color);
       });
     }
@@ -425,13 +501,104 @@
     }
 
     function hasAnyLegalMove(color) {
+      return getAllLegalMoves(color, board).length > 0;
+    }
+
+    function getAllLegalMoves(color, b = board) {
+      const moves = [];
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
-          const piece = board[r][c];
-          if (piece && colorOf(piece) === color && getLegalMoves(r, c).length > 0) return true;
+          const piece = b[r][c];
+          if (piece && colorOf(piece) === color) {
+            getLegalMovesForBoard(b, r, c).forEach(move => moves.push({ fr: r, fc: c, tr: move.r, tc: move.c }));
+          }
         }
       }
-      return false;
+      return moves;
+    }
+
+    function applyMoveToBoard(b, move) {
+      const copy = cloneBoard(b);
+      const piece = copy[move.fr][move.fc];
+      copy[move.tr][move.tc] = piece;
+      copy[move.fr][move.fc] = null;
+      if (piece === "wP" && move.tr === 0) copy[move.tr][move.tc] = "wQ";
+      if (piece === "bP" && move.tr === 7) copy[move.tr][move.tc] = "bQ";
+      return copy;
+    }
+
+    function evaluateBoard(b) {
+      let score = 0;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = b[r][c];
+          if (!piece) continue;
+          const color = colorOf(piece);
+          const type = typeOf(piece);
+          let value = pieceValue[type] + centerBonus[r][c] * 8;
+          if (type === "P") value += color === "b" ? r * 7 : (7 - r) * 7;
+          score += color === "b" ? value : -value;
+        }
+      }
+      if (isKingInCheck(b, "w")) score += 45;
+      if (isKingInCheck(b, "b")) score -= 45;
+      return score;
+    }
+
+    function moveScore(move, b, difficulty) {
+      const moving = b[move.fr][move.fc];
+      const captured = b[move.tr][move.tc];
+      let score = Math.random() * 12;
+
+      if (difficulty >= 2 && captured) {
+        score += pieceValue[typeOf(captured)] - pieceValue[typeOf(moving)] * 0.08;
+      }
+
+      if (difficulty >= 3) {
+        const after = applyMoveToBoard(b, move);
+        score += evaluateBoard(after) / 10;
+      }
+
+      if (difficulty >= 4) {
+        const after = applyMoveToBoard(b, move);
+        const whiteReplies = getAllLegalMoves("w", after);
+        if (whiteReplies.length === 0 && isKingInCheck(after, "w")) score += 99999;
+        const worstReply = whiteReplies.reduce((worst, reply) => {
+          const replyBoard = applyMoveToBoard(after, reply);
+          return Math.min(worst, evaluateBoard(replyBoard));
+        }, Infinity);
+        if (Number.isFinite(worstReply)) score += worstReply / 8;
+      }
+
+      return score;
+    }
+
+    function chooseBotMove() {
+      const moves = getAllLegalMoves("b", board);
+      if (moves.length === 0) return null;
+      const difficulty = Number(difficultySelect.value);
+      if (difficulty === 1) return moves[Math.floor(Math.random() * moves.length)];
+
+      return moves
+        .map(move => ({ move, score: moveScore(move, board, difficulty) }))
+        .sort((a, b) => b.score - a.score)[0].move;
+    }
+
+    function maybeBotMove() {
+      if (gameOver || modeSelect.value !== "bot" || turn !== "b") return;
+      botThinking = true;
+      boardEl.classList.add("thinking");
+      statusEl.innerHTML = "Zwart denkt na…";
+
+      setTimeout(() => {
+        const move = chooseBotMove();
+        if (move) makeMove(move.fr, move.fc, move.tr, move.tc);
+        botThinking = false;
+        boardEl.classList.remove("thinking");
+        render();
+        updateStatus();
+        updateMoves();
+      }, 450);
     }
 
     function updateStatus() {
@@ -462,6 +629,10 @@
     }
 
     resetBtn.addEventListener("click", newGame);
+    modeSelect.addEventListener("change", newGame);
+    difficultySelect.addEventListener("change", () => {
+      if (modeSelect.value === "bot") newGame();
+    });
     newGame();
   </script>
 </body>
