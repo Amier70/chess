@@ -65,6 +65,7 @@
       aspect-ratio: 1 / 1;
       display: grid;
       grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       overflow: hidden;
       border-radius: 18px;
       border: 8px solid #111827;
@@ -73,6 +74,8 @@
 
     .square {
       position: relative;
+      min-width: 0;
+      min-height: 0;
       display: flex;
       align-items: center;
       justify-content: center;
